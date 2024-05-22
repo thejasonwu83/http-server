@@ -11,6 +11,11 @@ import (
 	"strings"
 )
 
+func getRequestBody(input string) string {
+	components := strings.Split(input, "\r\n\r\n")
+	return components[len(components)-1]
+}
+
 func respondWithBody(body interface{}, contentType string, conn net.Conn) error {
 	var contentLength int
 	switch body := body.(type) {
@@ -21,6 +26,19 @@ func respondWithBody(body interface{}, contentType string, conn net.Conn) error 
 	}
 	output := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s", contentType, contentLength, body)
 	_, err := conn.Write([]byte(output))
+	return err
+}
+
+func postFile(target, body string, conn net.Conn) error {
+	directory := os.Args[2]
+	fileName := target[7:]
+	fileContents := strings.Trim(body, "\x00")
+	err := os.WriteFile(directory+fileName, []byte(fileContents), 0644)
+	if err != nil {
+		fmt.Println("Error creating/writing to file.")
+		return err
+	}
+	_, err = conn.Write([]byte("HTTP/1.1 201 Created\r\n\r\n"))
 	return err
 }
 
@@ -70,19 +88,24 @@ func parseRequest(conn net.Conn) {
 	input := string(buffer)
 	fmt.Println("Received input: ", input) //debug
 	target := strings.Split(input, " ")[1]
+	requestType := strings.Split(input, " ")[0]
 	headers := parseRequestHeaders(input)
 	var err error
-	switch {
-	case target == "/":
-		_, err = conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
-	case strings.Contains(target, "/echo/"):
-		err = echoRequest(target, conn)
-	case target == "/user-agent":
-		err = getUserAgent(headers["User-Agent"], conn)
-	case strings.Contains(target, "/files/"):
-		err = getFile(target, conn)
-	default:
-		_, err = conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+	if requestType == "GET" {
+		switch {
+		case target == "/":
+			_, err = conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+		case strings.Contains(target, "/echo/"):
+			err = echoRequest(target, conn)
+		case target == "/user-agent":
+			err = getUserAgent(headers["User-Agent"], conn)
+		case strings.Contains(target, "/files/"):
+			err = getFile(target, conn)
+		default:
+			_, err = conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		}
+	} else if requestType == "POST" {
+		err = postFile(target, getRequestBody(input), conn)
 	}
 	if err != nil {
 		fmt.Println("Error providing response :", err.Error())
