@@ -1,14 +1,16 @@
 package main
 
+// TODO: give each function a description
+
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
 )
 
-// TODO: see if this is a practical function to implement
 func respondWithBody(body, contentType string, conn net.Conn) error {
 	contentLength := len(body)
 	output := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s", contentType, contentLength, body)
@@ -89,5 +91,16 @@ func main() {
 		}
 	}()
 
-	parseRequest(conn)
+	for {
+		go parseRequest(conn)
+		conn, err = l.Accept()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				fmt.Println("Reached EOF for client input, terminating.")
+				break
+			}
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+	}
 }
