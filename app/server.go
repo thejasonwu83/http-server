@@ -11,11 +11,29 @@ import (
 	"strings"
 )
 
-func respondWithBody(body, contentType string, conn net.Conn) error {
-	contentLength := len(body)
+func respondWithBody(body interface{}, contentType string, conn net.Conn) error {
+	var contentLength int
+	switch body := body.(type) {
+	case string:
+		contentLength = len(body)
+	case []byte:
+		contentLength = len(body)
+	}
 	output := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s", contentType, contentLength, body)
 	_, err := conn.Write([]byte(output))
 	return err
+}
+
+func getFile(target string, conn net.Conn) error {
+	fileName := target[7:]
+	directory := os.Args[2]
+	data, err := os.ReadFile(directory + fileName)
+	if err != nil {
+		fmt.Println("File not found, returning response 404.")
+		_, err = conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		return err
+	}
+	return respondWithBody(data, "application/octet-stream", conn)
 }
 
 func echoRequest(target string, conn net.Conn) error {
@@ -51,12 +69,7 @@ func parseRequest(conn net.Conn) {
 	}
 	input := string(buffer)
 	fmt.Println("Received input: ", input) //debug
-	targetEndIdx := strings.Index(input, "HTTP")
-	if targetEndIdx == -1 {
-		fmt.Println("Error parsing input")
-		os.Exit(1)
-	}
-	target := input[4 : targetEndIdx-1] // GET <target> HTTP/1.1
+	target := strings.Split(input, " ")[1]
 	headers := parseRequestHeaders(input)
 	var err error
 	switch {
@@ -66,6 +79,8 @@ func parseRequest(conn net.Conn) {
 		err = echoRequest(target, conn)
 	case target == "/user-agent":
 		err = getUserAgent(headers["User-Agent"], conn)
+	case strings.Contains(target, "/files/"):
+		err = getFile(target, conn)
 	default:
 		_, err = conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
