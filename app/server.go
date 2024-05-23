@@ -41,13 +41,13 @@ func respondWithBody(body, headers interface{}, conn net.Conn) error {
 
 func compressedEchoRequest(compression, target string, conn net.Conn) error {
 	content := target[6:]
-	var err error
-	if compression == "gzip" {
-		err = respondWithBody(content, map[string]string{"Content-Type": "text/plain", "Content-Encoding": "gzip"}, conn)
-	} else {
-		err = respondWithBody(content, "text/plain", conn)
+	protocols := strings.Split(compression, ",")
+	for _, protocol := range protocols {
+		if strings.Trim(protocol, " ") == "gzip" {
+			return respondWithBody(content, map[string]string{"Content-Type": "text/plain", "Content-Encoding": "gzip"}, conn)
+		}
 	}
-	return err
+	return respondWithBody(content, "text/plain", conn)
 }
 
 func postFile(target, body string, conn net.Conn) error {
