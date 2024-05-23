@@ -16,7 +16,7 @@ func getRequestBody(input string) string {
 	return components[len(components)-1]
 }
 
-func respondWithBody(body interface{}, contentType string, conn net.Conn) error {
+func respondWithBody(body, headers interface{}, conn net.Conn) error {
 	var contentLength int
 	switch body := body.(type) {
 	case string:
@@ -24,8 +24,29 @@ func respondWithBody(body interface{}, contentType string, conn net.Conn) error 
 	case []byte:
 		contentLength = len(body)
 	}
-	output := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s", contentType, contentLength, body)
+	var output string
+	switch headers := headers.(type) {
+	case map[string]string:
+		output = "HTTP/1.1 200 OK\r\n"
+		for header, value := range headers {
+			output += fmt.Sprintf("%s: %s\r\n", header, value)
+		}
+		output += fmt.Sprintf("Content-Length: %d\r\n\r\n%s", contentLength, body)
+	case string: // assume to be Content-Type
+		output = fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s", headers, contentLength, body)
+	}
 	_, err := conn.Write([]byte(output))
+	return err
+}
+
+func compressedEchoRequest(compression, target string, conn net.Conn) error {
+	content := target[6:]
+	var err error
+	if compression == "gzip" {
+		err = respondWithBody(content, map[string]string{"Content-Type": "text/plain", "Accept-Encoding": "gzip"}, conn)
+	} else {
+		err = respondWithBody(content, "text/plain", conn)
+	}
 	return err
 }
 
@@ -51,7 +72,7 @@ func getFile(target string, conn net.Conn) error {
 		_, err = conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 		return err
 	}
-	return respondWithBody(data, "application/octet-stream", conn)
+	return respondWithBody(data, map[string]string{"Content-Type": "application/octet-stream"}, conn)
 }
 
 func echoRequest(target string, conn net.Conn) error {
@@ -96,7 +117,11 @@ func parseRequest(conn net.Conn) {
 		case target == "/":
 			_, err = conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 		case strings.Contains(target, "/echo/"):
-			err = echoRequest(target, conn)
+			if headers["Accept-Encoding"] != "" {
+				err = compressedEchoRequest(headers["Accept-Encoding"], target, conn)
+			} else {
+				err = echoRequest(target, conn)
+			}
 		case target == "/user-agent":
 			err = getUserAgent(headers["User-Agent"], conn)
 		case strings.Contains(target, "/files/"):
