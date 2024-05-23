@@ -1,38 +1,27 @@
-[![progress-banner](https://backend.codecrafters.io/progress/http-server/0ff995f3-0fe5-4157-9423-e388d792bcf5)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# Lightweight HTTP Server Clone
+Designed completely using Go, following this [Codecrafters Demo](shttps://app.codecrafters.io/courses/http-server/overview)
 
-This is a starting point for Go solutions to the
-["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview).
+## Core Features
+- Connect to TCP ports
+- Parses requested URL path
+- Supports requests from concurrent connections
+- Supports `GET` requests
+   - Supports `echo` requests
+   - Supports requests for fetching `User-Agent`
+   - Supports requests for *file retrieval* from server
+- Supports `POST` requests
+   - Supports requests for saving a file to a server
 
-[HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
-protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
-that is capable of serving multiple clients.
+## Additional Features
+- Supports content-encoding via `gzip` compression
 
-Along the way you'll learn about TCP servers,
-[HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
-and more.
-
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
-
-# Passing the first stage
-
-The entry point for your HTTP server implementation is in `app/server.go`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
-
-```sh
-git add .
-git commit -m "pass 1st stage" # any msg
-git push origin master
-```
-
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `go (1.19)` installed locally
-1. Run `./your_server.sh` to run your program, which is implemented in
-   `app/server.go`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+## See it in action!
+> Please don't use this for commercial deployment.
+1. Download app/server.go, build and run `server`
+2. In a separate terminal instance, try the following commands!
+- To connect to a port:
+`nc -vz 127.0.0.1 4221`
+- To send a basic HTTP `GET` request
+`curl -i http://localhost:4221`
+- To send a `GET` request for a URL
+`curl -i GET http://localhost:4221/index.html`
