@@ -3,6 +3,7 @@ package main
 // TODO: give each function a description
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -44,7 +45,11 @@ func compressedEchoRequest(compression, target string, conn net.Conn) error {
 	protocols := strings.Split(compression, ",")
 	for _, protocol := range protocols {
 		if strings.Trim(protocol, " ") == "gzip" {
-			return respondWithBody(content, map[string]string{"Content-Type": "text/plain", "Content-Encoding": "gzip"}, conn)
+			var builder strings.Builder
+			writer := gzip.NewWriter(&builder)
+			writer.Write([]byte(content))
+			writer.Close()
+			return respondWithBody(builder.String(), map[string]string{"Content-Type": "text/plain", "Content-Encoding": "gzip"}, conn)
 		}
 	}
 	return respondWithBody(content, "text/plain", conn)
